@@ -66,15 +66,36 @@ local input_config_typedef = sdk.find_type_definition("snow.StmInputConfig")
 local update_player_keybind_method = input_config_typedef:get_method("UpdatePlayerKeyBind")
 local update_settings_method = input_config_typedef:get_method("updateSettingOptionChange")
 
-local function find_player_typedef_name()
-    if not player_manager then
-        return
-    end
+local screen_size = {
+    width = 0,
+    height = 0
+}
+
+local function get_window_size()
+    local sceneManager = sdk.get_native_singleton("via.SceneManager");
+    if not sceneManager then return end
+    local sceneView = sdk.call_native_func(sceneManager, sdk.find_type_definition("via.SceneManager"), "get_MainView");
+    if not sceneView then return end
+    local sceneSize = sceneView:call("get_Size");
+    if not sceneSize then return end
+    local lwidth = sceneSize:get_field("w");
+    if not lwidth then return end
+    local lheight = sceneSize:get_field("h");
+    if not lheight then return end
+    screen_size = {
+        width = lwidth,
+        height = lheight
+    }
+end
+
+re.on_frame(function()
+    if screen_size.width == 0 then get_window_size() end
+
     player_character = find_master_method:call(player_manager)
     if player_character then
         player_typedef_name = player_character:get_type_definition():get_full_name()
     end
-end
+end)
 
 local function player_is_ranged()
     local n = player_typedef_name
@@ -155,7 +176,6 @@ local function update_keybinds(retval)
     if not initialized then
         return retval
     end
-    find_player_typedef_name()
 
     -- 7 Dodge
     -- 8 Interact
@@ -214,11 +234,6 @@ local function initialize()
     if not player_manager then
         initialized = false
         player_manager = sdk.get_managed_singleton("snow.player.PlayerManager")
-    end
-
-    if not player_typedef_name then
-        initialized = false
-        find_player_typedef_name()
     end
 
     if not input_manager then
